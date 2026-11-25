@@ -1,6 +1,6 @@
 """Typed boundaries shared by API, agents, checkpoints and evaluation."""
 
-from enum import Enum
+from enum import StrEnum
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -10,7 +10,7 @@ class StrictModel(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
-class State(str, Enum):
+class State(StrEnum):
     PENDING = "pending"
     ROUTING = "routing"
     RECOMMENDING = "recommending"
@@ -34,7 +34,9 @@ _EDGES = {
 
 
 def advance(current: State, target: State) -> State:
-    allowed = _EDGES.get(current, set()) | ({State.FAILED, State.DEGRADED} if current not in TERMINAL else set())
+    allowed = _EDGES.get(current, set()) | (
+        {State.FAILED, State.DEGRADED} if current not in TERMINAL else set()
+    )
     if target not in allowed:
         raise ValueError(f"illegal transition: {current.value} -> {target.value}")
     return target
@@ -94,7 +96,10 @@ class Handoff(StrictModel):
 
     @model_validator(mode="after")
     def legal_edge(self):
-        if (self.source, self.target) not in {("supervisor", "recommendation"), ("recommendation", "dialogue")}:
+        if (self.source, self.target) not in {
+            ("supervisor", "recommendation"),
+            ("recommendation", "dialogue"),
+        }:
             raise ValueError("handoff edge is not authorized")
         if sum(len(m.content) for m in self.recent_messages) > 18000:
             raise ValueError("handoff context exceeds budget")

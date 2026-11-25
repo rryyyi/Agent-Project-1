@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security policy
+    url: https://github.com/rryyyi/Agent-Project-1/security/policy
+    about: Read before reporting security-sensitive issues.

@@ -1,0 +1,27 @@
+name: Bug report
+description: Report a reproducible behavior or reliability failure
+title: '[Bug] '
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Please remove secrets and personal/customer data. Security reports follow SECURITY.md.
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Expected and actual behavior
+      description: Include sanitized state, error_category and reproduction steps.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, Python, project commit/version, demo or live provider. Do not include API keys.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Minimal reproduction and test output
+      render: text

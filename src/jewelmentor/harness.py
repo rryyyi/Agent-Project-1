@@ -69,11 +69,21 @@ class Harness:
         if remaining < 1:
             raise PermanentError("handoff_budget")
         messages, memory = self.store.context(turn["session_id"])
-        Handoff(trace_id=turn["trace_id"], session_id=turn["session_id"], turn_id=turn["id"],
-                source=source, target=target, goal=request.message,
-                intent=cp["route"]["intent"], expert_id=cp.get("expert_id"),
-                recent_messages=messages, memory=memory,
-                evidence=cp.get("evidence", []), deadline=turn["deadline"], remaining_hops=remaining)
+        Handoff(
+            trace_id=turn["trace_id"],
+            session_id=turn["session_id"],
+            turn_id=turn["id"],
+            source=source,
+            target=target,
+            goal=request.message,
+            intent=cp["route"]["intent"],
+            expert_id=cp.get("expert_id"),
+            recent_messages=messages,
+            memory=memory,
+            evidence=cp.get("evidence", []),
+            deadline=turn["deadline"],
+            remaining_hops=remaining,
+        )
         cp["hops"] = used + 1
 
     async def _execute(self, turn):
@@ -94,15 +104,25 @@ class Harness:
                     self._handoff(turn, cp, "supervisor", "recommendation", request)
                     self._transition(turn, State.RECOMMENDING, cp, "recommendation")
                 elif state == State.RECOMMENDING:
-                    cp["expert_id"] = self.catalog.recommend(cp["route"]["intent"], request.expert_id).id
+                    cp["expert_id"] = self.catalog.recommend(
+                        cp["route"]["intent"], request.expert_id
+                    ).id
                     self._transition(turn, State.RETRIEVING, cp, "retrieval")
                 elif state == State.RETRIEVING:
-                    cp["evidence"] = [e.model_dump() for e in self.catalog.search(request.message, cp["route"]["intent"])]
+                    cp["evidence"] = [
+                        e.model_dump()
+                        for e in self.catalog.search(request.message, cp["route"]["intent"])
+                    ]
                     self._handoff(turn, cp, "recommendation", "dialogue", request)
                     messages, memory = self.store.context(turn["session_id"])
-                    ctx = GenerationContext(text=request.message, route=cp["route"],
-                        expert=self.catalog.expert(cp["expert_id"]), messages=messages,
-                        memory=memory, evidence=cp["evidence"])
+                    ctx = GenerationContext(
+                        text=request.message,
+                        route=cp["route"],
+                        expert=self.catalog.expert(cp["expert_id"]),
+                        messages=messages,
+                        memory=memory,
+                        evidence=cp["evidence"],
+                    )
                     cp["context"] = ctx.model_dump()
                     self._transition(turn, State.GENERATING, cp, "dialogue")
                 elif state in {State.GENERATING, State.RETRYING}:
@@ -112,11 +132,23 @@ class Harness:
                     raise PermanentError("runtime_state")
         except TransientError as exc:
             final = State.DEGRADED
-            error = str(exc) if str(exc) in {"provider_timeout", "turn_deadline"} else "provider_transient"
-            answer = "本轮生成暂时不可用，已保留会话上下文。请稍后发送新消息重试；本轮未计为成功交接。"
+            error = (
+                str(exc)
+                if str(exc) in {"provider_timeout", "turn_deadline"}
+                else "provider_transient"
+            )
+            answer = (
+                "本轮生成暂时不可用，已保留会话上下文。请稍后发送新消息重试；本轮未计为成功交接。"
+            )
         except PermanentError as exc:
             final = State.FAILED
-            allowed = {"handoff_budget", "provider_auth", "provider_request", "provider_response", "runtime_state"}
+            allowed = {
+                "handoff_budget",
+                "provider_auth",
+                "provider_request",
+                "provider_response",
+                "runtime_state",
+            }
             error = str(exc) if str(exc) in allowed else "provider_error"
             answer = "本轮执行失败，已保留会话。请检查模型配置或查看轨迹中的错误类别。"
         except Exception:
@@ -124,14 +156,26 @@ class Harness:
             final, error = State.FAILED, "runtime_error"
             answer = "本轮遇到内部错误，已保留会话。请使用轨迹标识排查。"
         advance(State(turn["state"]), final)
-        result = TurnResult(session_id=turn["session_id"], turn_id=turn["id"], trace_id=turn["trace_id"],
-            state=final, answer=answer, expert_id=cp.get("expert_id", "lin"),
+        result = TurnResult(
+            session_id=turn["session_id"],
+            turn_id=turn["id"],
+            trace_id=turn["trace_id"],
+            state=final,
+            answer=answer,
+            expert_id=cp.get("expert_id", "lin"),
             route=Route.model_validate(cp.get("route", route(request.message).model_dump())),
-            evidence=cp.get("evidence", []), provider=self.provider.name, error_category=error)
+            evidence=cp.get("evidence", []),
+            provider=self.provider.name,
+            error_category=error,
+        )
         memory = self.store.session(turn["session_id"])["memory"]
         if final == State.COMPLETED:
-            memory = {"last_intent": result.route.intent, "preferred_expert": result.expert_id,
-                      "training_goal": result.route.intent, "completed_turns": str(int(memory.get("completed_turns", "0")) + 1)}
+            memory = {
+                "last_intent": result.route.intent,
+                "preferred_expert": result.expert_id,
+                "training_goal": result.route.intent,
+                "completed_turns": str(int(memory.get("completed_turns", "0")) + 1),
+            }
         self.store.finish(turn, result, memory)
         return result
 
@@ -146,15 +190,33 @@ class Harness:
             if timeout <= 0:
                 raise TransientError("turn_deadline")
             try:
-                answer = await asyncio.wait_for(self.provider.generate(GenerationContext.model_validate(cp["context"])), timeout)
+                answer = await asyncio.wait_for(
+                    self.provider.generate(GenerationContext.model_validate(cp["context"])), timeout
+                )
                 if not isinstance(answer, str) or not answer.strip() or len(answer) > 6000:
                     raise PermanentError("provider_response")
                 return answer
             except (TimeoutError, TransientError) as exc:
-                category = "provider_timeout" if isinstance(exc, TimeoutError) else "provider_transient"
+                if time.time() >= turn["deadline"]:
+                    raise TransientError("turn_deadline") from exc
+                category = (
+                    "provider_timeout" if isinstance(exc, TimeoutError) else "provider_transient"
+                )
                 if cp["attempts"] >= self.settings.max_attempts:
                     raise TransientError(category) from exc
-                self._transition(turn, State.RETRYING, cp, "dialogue", attempt=cp["attempts"],
-                    elapsed_ms=(time.monotonic() - started) * 1000, error=category)
-                await asyncio.sleep(min(self.settings.retry_delay * cp["attempts"], max(0, turn["deadline"] - time.time())))
+                self._transition(
+                    turn,
+                    State.RETRYING,
+                    cp,
+                    "dialogue",
+                    attempt=cp["attempts"],
+                    elapsed_ms=(time.monotonic() - started) * 1000,
+                    error=category,
+                )
+                await asyncio.sleep(
+                    min(
+                        self.settings.retry_delay * cp["attempts"],
+                        max(0, turn["deadline"] - time.time()),
+                    )
+                )
         raise TransientError("provider_transient")

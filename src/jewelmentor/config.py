@@ -30,7 +30,9 @@ class Settings(BaseModel):
             parsed = urlparse(self.base_url)
             if parsed.username or parsed.password or parsed.query or parsed.fragment:
                 raise ValueError("base URL must not contain credentials, query or fragment")
-            if parsed.scheme != "https" and not (parsed.scheme == "http" and parsed.hostname in {"localhost", "127.0.0.1", "::1"}):
+            if parsed.scheme != "https" and not (
+                parsed.scheme == "http" and parsed.hostname in {"localhost", "127.0.0.1", "::1"}
+            ):
                 raise ValueError("remote providers require HTTPS")
             if not parsed.hostname:
                 raise ValueError("base URL requires a hostname")
@@ -39,8 +41,12 @@ class Settings(BaseModel):
     @classmethod
     def from_env(cls):
         fields = {
-            "provider": "JEWELMENTOR_PROVIDER", "db_path": "JEWELMENTOR_DB",
-            "api_key": "OPENAI_API_KEY", "base_url": "OPENAI_BASE_URL", "model": "OPENAI_MODEL",
-            "node_timeout": "JEWELMENTOR_NODE_TIMEOUT", "turn_timeout": "JEWELMENTOR_TURN_TIMEOUT",
+            "provider": "JEWELMENTOR_PROVIDER",
+            "db_path": "JEWELMENTOR_DB",
+            "api_key": "OPENAI_API_KEY",
+            "base_url": "OPENAI_BASE_URL",
+            "model": "OPENAI_MODEL",
+            "node_timeout": "JEWELMENTOR_NODE_TIMEOUT",
+            "turn_timeout": "JEWELMENTOR_TURN_TIMEOUT",
         }
         return cls(**{key: os.environ[env] for key, env in fields.items() if env in os.environ})

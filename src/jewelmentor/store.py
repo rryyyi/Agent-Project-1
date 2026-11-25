@@ -72,13 +72,34 @@ class Store:
             row = db.execute("SELECT * FROM sessions WHERE id=?", (sid,)).fetchone()
             if row is None:
                 raise KeyError(sid)
-            messages = [dict(r) for r in db.execute("SELECT role,content,turn_id FROM messages WHERE session_id=? ORDER BY seq", (sid,))]
-            turns = [dict(r) for r in db.execute("SELECT id,state,trace_id,request_id FROM turns WHERE session_id=? ORDER BY rowid", (sid,))]
-            return {"id": sid, "created": row["created"], "memory": json.loads(row["memory"]), "messages": messages, "turns": turns}
+            messages = [
+                dict(r)
+                for r in db.execute(
+                    "SELECT role,content,turn_id FROM messages WHERE session_id=? ORDER BY seq",
+                    (sid,),
+                )
+            ]
+            turns = [
+                dict(r)
+                for r in db.execute(
+                    "SELECT id,state,trace_id,request_id FROM turns WHERE session_id=? ORDER BY rowid",
+                    (sid,),
+                )
+            ]
+            return {
+                "id": sid,
+                "created": row["created"],
+                "memory": json.loads(row["memory"]),
+                "messages": messages,
+                "turns": turns,
+            }
 
     def trace(self, sid):
         with self.connect() as db:
-            return [dict(r) for r in db.execute("SELECT * FROM events WHERE session_id=? ORDER BY seq", (sid,))]
+            return [
+                dict(r)
+                for r in db.execute("SELECT * FROM events WHERE session_id=? ORDER BY seq", (sid,))
+            ]
 
     def delete_session(self, sid):
         with self.connect() as db:
@@ -92,43 +113,88 @@ class Store:
             db.execute("BEGIN IMMEDIATE")
             if db.execute("SELECT 1 FROM sessions WHERE id=?", (sid,)).fetchone() is None:
                 raise KeyError(sid)
-            old = db.execute("SELECT * FROM turns WHERE session_id=? AND request_id=?", (sid, request.request_id)).fetchone()
+            old = db.execute(
+                "SELECT * FROM turns WHERE session_id=? AND request_id=?", (sid, request.request_id)
+            ).fetchone()
             if old:
                 if old["fingerprint"] != fingerprint:
                     raise Conflict("request_id already belongs to a different payload")
                 return dict(old)
-            pending = db.execute("SELECT 1 FROM turns WHERE session_id=? AND result IS NULL", (sid,)).fetchone()
+            pending = db.execute(
+                "SELECT 1 FROM turns WHERE session_id=? AND result IS NULL", (sid,)
+            ).fetchone()
             if pending:
                 raise Conflict("an interrupted turn requires recovery before a new message")
             tid, trace = uuid4().hex, uuid4().hex
-            db.execute("INSERT INTO turns(id,session_id,request_id,fingerprint,request,trace_id,state,provider,deadline) VALUES(?,?,?,?,?,?,?,?,?)",
-                       (tid, sid, request.request_id, fingerprint, payload, trace, State.PENDING.value, provider, time.time() + timeout))
-            db.execute("INSERT INTO messages(session_id,turn_id,role,content) VALUES(?,?,?,?)", (sid, tid, "user", request.message))
+            db.execute(
+                "INSERT INTO turns(id,session_id,request_id,fingerprint,request,trace_id,state,provider,deadline) VALUES(?,?,?,?,?,?,?,?,?)",
+                (
+                    tid,
+                    sid,
+                    request.request_id,
+                    fingerprint,
+                    payload,
+                    trace,
+                    State.PENDING.value,
+                    provider,
+                    time.time() + timeout,
+                ),
+            )
+            db.execute(
+                "INSERT INTO messages(session_id,turn_id,role,content) VALUES(?,?,?,?)",
+                (sid, tid, "user", request.message),
+            )
             return dict(db.execute("SELECT * FROM turns WHERE id=?", (tid,)).fetchone())
 
     def turn(self, sid, tid):
         with self.connect() as db:
-            row = db.execute("SELECT * FROM turns WHERE session_id=? AND id=?", (sid, tid)).fetchone()
+            row = db.execute(
+                "SELECT * FROM turns WHERE session_id=? AND id=?", (sid, tid)
+            ).fetchone()
             if row is None:
                 raise KeyError(tid)
             return dict(row)
 
     def update(self, turn, state, checkpoint, node, attempt=0, elapsed_ms=0, error=None):
         with self.connect() as db:
-            db.execute("UPDATE turns SET state=?,checkpoint=? WHERE id=?", (state.value, encode(checkpoint), turn["id"]))
+            db.execute(
+                "UPDATE turns SET state=?,checkpoint=? WHERE id=?",
+                (state.value, encode(checkpoint), turn["id"]),
+            )
             self._event(db, turn, state, node, attempt, elapsed_ms, error)
         turn["state"], turn["checkpoint"] = state.value, encode(checkpoint)
 
     def _event(self, db, turn, state, node, attempt, elapsed_ms, error):
-        db.execute("INSERT INTO events(id,session_id,turn_id,trace_id,node,state,timestamp,attempt,elapsed_ms,error_category) VALUES(?,?,?,?,?,?,?,?,?,?)",
-                   (uuid4().hex, turn["session_id"], turn["id"], turn["trace_id"], node, state.value, time.time(), attempt, round(elapsed_ms, 2), error))
+        db.execute(
+            "INSERT INTO events(id,session_id,turn_id,trace_id,node,state,timestamp,attempt,elapsed_ms,error_category) VALUES(?,?,?,?,?,?,?,?,?,?)",
+            (
+                uuid4().hex,
+                turn["session_id"],
+                turn["id"],
+                turn["trace_id"],
+                node,
+                state.value,
+                time.time(),
+                attempt,
+                round(elapsed_ms, 2),
+                error,
+            ),
+        )
 
     def finish(self, turn, result: TurnResult, memory):
         with self.connect() as db:
             db.execute("BEGIN IMMEDIATE")
-            db.execute("INSERT INTO messages(session_id,turn_id,role,content) VALUES(?,?,?,?)", (turn["session_id"], turn["id"], "assistant", result.answer))
-            db.execute("UPDATE turns SET state=?,result=? WHERE id=?", (result.state.value, result.model_dump_json(), turn["id"]))
-            db.execute("UPDATE sessions SET memory=? WHERE id=?", (encode(memory), turn["session_id"]))
+            db.execute(
+                "INSERT INTO messages(session_id,turn_id,role,content) VALUES(?,?,?,?)",
+                (turn["session_id"], turn["id"], "assistant", result.answer),
+            )
+            db.execute(
+                "UPDATE turns SET state=?,result=? WHERE id=?",
+                (result.state.value, result.model_dump_json(), turn["id"]),
+            )
+            db.execute(
+                "UPDATE sessions SET memory=? WHERE id=?", (encode(memory), turn["session_id"])
+            )
             self._event(db, turn, result.state, "dialogue", 0, 0, result.error_category)
 
     def context(self, sid):

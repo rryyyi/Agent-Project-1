@@ -17,7 +17,9 @@ def route(text: str) -> Route:
     ranked = sorted(scores, key=lambda key: scores[key], reverse=True)
     best = ranked[0]
     if not scores[best]:
-        return Route(intent="clarify", confidence=0.2, reason="没有明确的珠宝培训信号，需要澄清训练目标")
+        return Route(
+            intent="clarify", confidence=0.2, reason="没有明确的珠宝培训信号，需要澄清训练目标"
+        )
     # Price objections override product mentions; practice remains explicit when there is no objection.
     if scores["objection"]:
         best = "objection"
@@ -25,4 +27,8 @@ def route(text: str) -> Route:
         best = "practice"
     elif scores["relationship"]:
         best = "relationship"
-    return Route(intent=best, confidence=min(0.92, 0.62 + 0.1 * scores[best]), reason=f"命中 {best} 词项 {scores[best]} 项；规则置信度未经概率校准")
+    return Route(
+        intent=best,
+        confidence=min(0.92, 0.62 + 0.1 * scores[best]),
+        reason=f"命中 {best} 词项 {scores[best]} 项；规则置信度未经概率校准",
+    )

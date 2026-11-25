@@ -1,0 +1,74 @@
+name: CI
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  verify:
+    name: Python ${{ matrix.python }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.11', '3.12', '3.13']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+      - run: python -m pip install -e '.[dev]'
+      - run: ruff check .
+      - run: ruff format --check .
+      - run: python -m pytest -q
+      - run: jewelmentor evaluate --output runtime/ci-evaluation.json
+      - run: python -m build
+      - name: Verify packaged UI and data
+        run: |
+          python -m venv /tmp/jewelmentor-wheel
+          /tmp/jewelmentor-wheel/bin/pip install dist/*.whl
+          cd /tmp
+          /tmp/jewelmentor-wheel/bin/jewelmentor evaluate --output /tmp/wheel-evaluation.json
+          /tmp/jewelmentor-wheel/bin/python -c "from importlib.resources import files; from jewelmentor.api import create_app; assert files('jewelmentor').joinpath('static/index.html').is_file(); assert create_app().title == 'JewelMentor'"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: evidence-python-${{ matrix.python }}
+          path: |
+            runtime/ci-evaluation.json
+            dist/*
+          retention-days: 14
+  smoke:
+    name: Browser and container
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: python -m pip install -e '.[browser]'
+      - run: playwright install --with-deps chromium
+      - run: python scripts/browser_smoke.py
+      - run: docker build -t jewelmentor:ci .
+      - name: Container health and API
+        run: |
+          docker run -d --name jewelmentor-ci -p 127.0.0.1:8000:8000 jewelmentor:ci
+          for attempt in $(seq 1 20); do
+            if curl --fail --silent http://127.0.0.1:8000/health; then break; fi
+            sleep 1
+          done
+          curl --fail --silent http://127.0.0.1:8000/health
+          curl --fail --silent -X POST http://127.0.0.1:8000/api/sessions
+      - name: Container logs and cleanup
+        if: always()
+        run: |
+          docker logs jewelmentor-ci || true
+          docker rm -f jewelmentor-ci || true
