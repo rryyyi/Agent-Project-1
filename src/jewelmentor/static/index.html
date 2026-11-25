@@ -1,13 +1,142 @@
 <!doctype html>
 <html lang="zh-CN">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#132c2a"><title>JewelMentor · 珠宝销售训练</title><link rel="stylesheet" href="/static/style.css"><script src="/static/app.js" defer></script></head>
-<body>
-<header class="topbar"><a class="brand" href="/" aria-label="JewelMentor 首页"><span class="mark">◇</span><span>JewelMentor<small>SALES INTELLIGENCE LAB</small></span></a><div class="header-right"><span id="mode" class="pill">连接中</span><a href="/docs" target="_blank" rel="noreferrer">API 文档 ↗</a></div></header>
-<main>
-<section class="hero"><div><p class="eyebrow">FROM KNOWLEDGE TO CONVERSATION</p><h1>把专业知识，变成<br><em>打动顾客的对话。</em></h1><p class="intro">与销售教练一起拆解真实场景。练习一次回应，看清每一步思考。</p></div><div class="hero-note"><span class="diamond">◇</span><p>先理解需求<br>再呈现价值</p><small>倾听 · 澄清 · 举证 · 练习</small></div></section>
-<div class="workspace">
-<aside class="sidebar"><p class="eyebrow">01 / YOUR COACH</p><h2>选择你的训练教练</h2><label class="select-label" for="expert">专家偏好</label><select id="expert"><option value="">按场景自动推荐</option></select><p id="expert-note" class="muted">系统根据本轮场景推荐适合的教练。所有角色均为原创虚构教学人物。</p><div class="divider"></div><p class="eyebrow">QUICK START</p><h3>从一个场景开始</h3><div id="scenarios" class="scenarios"><button data-prompt="顾客说这款钻戒太贵了，别家更便宜，我该怎么回应？"><span>01</span>回应价格异议 <b>↗</b></button><button data-prompt="顾客预算一万元，准备求婚，我应该先问哪些需求？"><span>02</span>挖掘购买需求 <b>↗</b></button><button data-prompt="如何向第一次买钻石的顾客解释4C和净度？"><span>03</span>解释产品价值 <b>↗</b></button><button data-prompt="我们来角色扮演练习，你扮演犹豫的顾客，我来回应。"><span>04</span>进入实战演练 <b>↗</b></button></div><div class="sidebar-footer"><span class="status-dot"></span>本地持久化 · 可恢复会话<p>当前版本面向本地单进程体验</p></div></aside>
-<section class="conversation" aria-label="训练对话"><div class="panel-head"><div><p class="eyebrow">02 / PRACTICE ROOM</p><h2>对话训练室</h2></div><button id="reset" class="text-button">清除并新建 ↺</button></div><div id="messages" class="messages" aria-live="polite"><div class="welcome"><span>✦</span><h3>一次好对话，从好问题开始。</h3><p>选一个场景，或描述你在门店遇到的难题。<br>教练会给出示范、原因与下一步练习。</p></div></div><div id="recovery" class="recovery" hidden><span>检测到中断回合，可从检查点恢复。</span><button id="resume">恢复本轮</button></div><form id="chat-form"><label class="sr-only" for="input">输入训练问题</label><textarea id="input" rows="3" maxlength="2000" placeholder="例如：顾客说‘我再看看’，我应该怎么接话？" required></textarea><div class="composer-bottom"><span id="counter">Enter 发送 · Shift + Enter 换行</span><button id="send" type="submit">开始训练 <span>↑</span></button></div></form><p id="status" role="status" class="status">准备就绪</p></section>
-<aside class="inspector"><p class="eyebrow">03 / BEHIND THE ANSWER</p><h2>看清本轮执行</h2><div class="metric-row"><span>执行状态</span><strong id="turn-state">等待输入</strong></div><div class="metric-row"><span>场景意图</span><strong id="intent">—</strong></div><div class="metric-row"><span>本轮教练</span><strong id="active-expert">自动推荐</strong></div><p id="route-reason" class="muted">发送消息后展示路由依据。</p><div class="divider"></div><h3>执行轨迹 <small>TRACE</small></h3><ol id="trace" class="trace"><li class="placeholder">统领 → 推荐 → 检索 → 对话</li></ol><div class="divider"></div><h3>知识依据 <small>EVIDENCE</small></h3><div id="evidence" class="evidence"><p class="muted">回答关联的知识记录会展示在这里。</p></div><p id="trace-id" class="trace-id"></p></aside>
-</div><footer>JewelMentor / 可审计的多 Agent 销售训练作品 <span>原创教学案例 · 非珠宝鉴定或投资建议</span></footer>
-</main></body></html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#132c2a" />
+    <title>JewelMentor · 珠宝销售训练</title>
+    <link rel="stylesheet" href="/static/style.css" />
+    <script src="/static/app.js" defer></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="JewelMentor 首页"
+        ><span class="mark">◇</span
+        ><span>JewelMentor<small>SALES INTELLIGENCE LAB</small></span></a
+      >
+      <div class="header-right">
+        <span id="mode" class="pill">连接中</span
+        ><a href="/docs" target="_blank" rel="noreferrer">API 文档 ↗</a>
+      </div>
+    </header>
+    <main>
+      <section class="hero">
+        <div>
+          <p class="eyebrow">FROM KNOWLEDGE TO CONVERSATION</p>
+          <h1>把专业知识，变成<br /><em>打动顾客的对话。</em></h1>
+          <p class="intro">
+            与销售教练一起拆解真实场景。练习一次回应，看清每一步思考。
+          </p>
+        </div>
+        <div class="hero-note">
+          <span class="diamond">◇</span>
+          <p>先理解需求<br />再呈现价值</p>
+          <small>倾听 · 澄清 · 举证 · 练习</small>
+        </div>
+      </section>
+      <div class="workspace">
+        <aside class="sidebar">
+          <p class="eyebrow">01 / YOUR COACH</p>
+          <h2>选择你的训练教练</h2>
+          <label class="select-label" for="expert">专家偏好</label
+          ><select id="expert">
+            <option value="">按场景自动推荐</option>
+          </select>
+          <p id="expert-note" class="muted">
+            系统根据本轮场景推荐适合的教练。所有角色均为原创虚构教学人物。
+          </p>
+          <div class="divider"></div>
+          <p class="eyebrow">QUICK START</p>
+          <h3>从一个场景开始</h3>
+          <div id="scenarios" class="scenarios">
+            <button
+              data-prompt="顾客说这款钻戒太贵了，别家更便宜，我该怎么回应？"
+            >
+              <span>01</span>回应价格异议 <b>↗</b></button
+            ><button
+              data-prompt="顾客预算一万元，准备求婚，我应该先问哪些需求？"
+            >
+              <span>02</span>挖掘购买需求 <b>↗</b></button
+            ><button data-prompt="如何向第一次买钻石的顾客解释4C和净度？">
+              <span>03</span>解释产品价值 <b>↗</b></button
+            ><button
+              data-prompt="我们来角色扮演练习，你扮演犹豫的顾客，我来回应。"
+            >
+              <span>04</span>进入实战演练 <b>↗</b>
+            </button>
+          </div>
+          <div class="sidebar-footer">
+            <span class="status-dot"></span>本地持久化 · 可恢复会话
+            <p>当前版本面向本地单进程体验</p>
+          </div>
+        </aside>
+        <section class="conversation" aria-label="训练对话">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">02 / PRACTICE ROOM</p>
+              <h2>对话训练室</h2>
+            </div>
+            <button id="reset" class="text-button">清除并新建 ↺</button>
+          </div>
+          <div id="messages" class="messages" aria-live="polite">
+            <div class="welcome">
+              <span>✦</span>
+              <h3>一次好对话，从好问题开始。</h3>
+              <p>
+                选一个场景，或描述你在门店遇到的难题。<br />教练会给出示范、原因与下一步练习。
+              </p>
+            </div>
+          </div>
+          <div id="recovery" class="recovery" hidden>
+            <span>检测到中断回合，可从检查点恢复。</span
+            ><button id="resume">恢复本轮</button>
+          </div>
+          <form id="chat-form">
+            <label class="sr-only" for="input">输入训练问题</label
+            ><textarea
+              id="input"
+              rows="3"
+              maxlength="2000"
+              placeholder="例如：顾客说‘我再看看’，我应该怎么接话？"
+              required
+            ></textarea>
+            <div class="composer-bottom">
+              <span id="counter">Enter 发送 · Shift + Enter 换行</span
+              ><button id="send" type="submit">开始训练 <span>↑</span></button>
+            </div>
+          </form>
+          <p id="status" role="status" class="status">准备就绪</p>
+        </section>
+        <aside class="inspector">
+          <p class="eyebrow">03 / BEHIND THE ANSWER</p>
+          <h2>看清本轮执行</h2>
+          <div class="metric-row">
+            <span>执行状态</span><strong id="turn-state">等待输入</strong>
+          </div>
+          <div class="metric-row">
+            <span>场景意图</span><strong id="intent">—</strong>
+          </div>
+          <div class="metric-row">
+            <span>本轮教练</span><strong id="active-expert">自动推荐</strong>
+          </div>
+          <p id="route-reason" class="muted">发送消息后展示路由依据。</p>
+          <div class="divider"></div>
+          <h3>执行轨迹 <small>TRACE</small></h3>
+          <ol id="trace" class="trace">
+            <li class="placeholder">统领 → 推荐 → 检索 → 对话</li>
+          </ol>
+          <div class="divider"></div>
+          <h3>知识依据 <small>EVIDENCE</small></h3>
+          <div id="evidence" class="evidence">
+            <p class="muted">回答关联的知识记录会展示在这里。</p>
+          </div>
+          <p id="trace-id" class="trace-id"></p>
+        </aside>
+      </div>
+      <footer>
+        JewelMentor / 可审计的多 Agent 销售训练作品
+        <span>原创教学案例 · 非珠宝鉴定或投资建议</span>
+      </footer>
+    </main>
+  </body>
+</html>

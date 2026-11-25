@@ -13,9 +13,9 @@ This file distinguishes executed checks from configured checks. Initial public i
 | `jewelmentor evaluate --output docs/evaluation/demo-report.json` | Routing 30/30; completed 6/10; expected scenario contracts 10/10; zero unexpected failures |
 | `python -m build --no-isolation` | Source distribution and wheel built |
 | Wheel package-data inspection | Persona/knowledge/evaluation JSON and static UI present |
-| Installed-wheel evaluation outside repository | Checked separately before publication; see GitHub CI for repeated artifact verification |
+| Installed-wheel evaluation outside repository | Passed locally in a separate environment; GitHub CI also passed artifact installation/evaluation on Python 3.11–3.13 |
 | Real browser + actual local HTTP service | Scenario chat, evidence, explicit expert switch, reload, mobile width, delete and sidebar reset passed; zero page errors |
-| Docker CLI | Available, but local Linux daemon not running; local image build/run not executed |
+| Docker CLI | Local Linux daemon not running; local image build/run not executed. GitHub Linux CI built the image and passed container health/API checks |
 | Live external model | Not executed; no user model key configured or consumed |
 
 Reproduce the browser check with:
@@ -38,6 +38,17 @@ Two behavioral findings were reproduced before fixing:
 2. Clearing a session left old inspector fields on screen. The real-browser reset assertion failed first, then passed after empty-session inspector reset was added.
 
 Additional tests pin consumed-attempt recovery, provider-mode recovery refusal and validation-error secret masking. No claim of production readiness, independent security audit or live-model quality is made.
+
+## GitHub CI evidence
+
+[Initial complete CI run](https://github.com/rryyyi/Agent-Project-1/actions/runs/45542105890), commit `e2729eab4b211a819fd0fa919b66e647a7c8174c`: **success**.
+
+- Python 3.11: tests, lint/format, evaluation, build and installed-wheel checks passed.
+- Python 3.12: all checks passed.
+- Python 3.13: all checks passed.
+- Browser and container: Chromium training flow passed; Docker image built and container health/session API checks passed.
+
+Later documentation/formatting commits have their own CI runs linked from the repository's Actions tab. The badge always reflects the latest workflow status; the run above is a fixed evidence link, not a claim that every future commit passes.
 
 ## Repository checks
 

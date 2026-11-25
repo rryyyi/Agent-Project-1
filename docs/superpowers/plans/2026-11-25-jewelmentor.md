@@ -88,7 +88,7 @@
 - [x] Run `python -m pytest`, `ruff check .`, `ruff format --check .`, package build/install and CLI/API smoke tests. Run fault checks and review actual results, source/data inclusion and ignored files.
 - [x] Read requesting-code-review and verification-before-completion; available-tool self-review explicitly described as such.
 - [x] Commit logical slices with configured repository-local author identity tied to GitHub account; push without force. If Git transport fails, diagnose connectivity/credential availability without exposing tokens.
-- [ ] Verify remote main commit and CI using public GitHub API, then report implementation, commands/results and any remaining limitations.
+- [x] Verify remote main commit and CI using GitHub API, then report implementation, commands/results and any remaining limitations. Evidence: CI run 45542105890, all four jobs successful.
 
 ## Self-review
 
